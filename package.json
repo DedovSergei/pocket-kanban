@@ -1,0 +1,7 @@
+{
+  "name": "pocket-kanban",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ]
+}
