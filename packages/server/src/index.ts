@@ -1,14 +1,32 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import mongoose from 'mongoose';
 import http from 'http';
 import { Server as IOServer } from 'socket.io';
+import boardsRouter from './routes/boards';
 
+// CONNECT TO MONGO
+const MONGO_URL = process.env.MONGO_URL;
+console.log('▶️ MONGO_URL:', MONGO_URL);
+
+mongoose
+  .connect(MONGO_URL as string)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
+
+// SETUP APP
 const app = express();
 app.use(cors({ origin: 'http://localhost:5173' }));
 const server = http.createServer(app);
 const io = new IOServer(server, { cors: { origin: '*' } });
 
 app.use(express.json());
+
+app.use('/boards', boardsRouter);
 
 app.get('/hello', (_req, res) => {
   res.send('Hello from server!');
