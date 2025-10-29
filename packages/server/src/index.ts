@@ -5,8 +5,8 @@ import mongoose from 'mongoose';
 import http from 'http';
 import { Server as IOServer } from 'socket.io';
 import boardsRouter from './routes/boards';
+import cardsRouter from './routes/cards';
 
-// CONNECT TO MONGO
 const MONGO_URL = process.env.MONGO_URL;
 console.log('▶️ MONGO_URL:', MONGO_URL);
 
@@ -27,6 +27,7 @@ const io = new IOServer(server, { cors: { origin: '*' } });
 app.use(express.json());
 
 app.use('/boards', boardsRouter);
+app.use('/cards', cardsRouter);
 
 app.get('/hello', (_req, res) => {
   res.send('Hello from server!');

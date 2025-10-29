@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { BoardModel } from '../models/Board'; // Make sure this path is correct
+import { BoardModel } from '../models/Board';
+import { CardModel } from '../models/Card';
 import { Types } from 'mongoose';
 
 const router = Router();
@@ -92,6 +93,25 @@ router.post('/:id/columns', async (req, res) => {
   } catch (err) {
     console.error('Error adding column:', err);
     return res.status(500).json({ error: 'Failed to add column' });
+  }
+});
+
+// GET /boards/:id/cards - Get all cards for a specific board
+router.get('/:id/cards', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid board ID format' });
+    }
+
+    // Find all cards where the boardId matches our route param
+    const cards = await CardModel.find({ boardId: id }).sort({ order: 1 });
+
+    return res.json(cards);
+  } catch (err) {
+    console.error('Error fetching cards:', err);
+    return res.status(500).json({ error: 'Failed to fetch cards' });
   }
 });
 
