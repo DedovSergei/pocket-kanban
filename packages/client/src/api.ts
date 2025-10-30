@@ -73,3 +73,21 @@ export async function createCard(boardId: string, columnId: string, text: string
   if (!res.ok) throw new Error('Failed to create card');
   return res.json();
 }
+
+// Type for the reorder payload
+type CardReorderPayload = {
+  _id: string;
+  order: number;
+  columnId: string;
+}
+
+// Function to update card order in bulk
+export async function updateCardOrder(cards: CardReorderPayload[]) {
+  const res = await fetch(`${API_BASE}/cards/reorder`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cards }), // Send as { "cards": [...] }
+  });
+  if (!res.ok) throw new Error('Failed to update card order');
+  return res.json();
+}

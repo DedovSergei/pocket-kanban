@@ -1,22 +1,21 @@
-// packages/client/src/pages/BoardPage.tsx
 import { useParams, Link } from 'react-router-dom';
 import { useEffect, useState, FormEvent } from 'react';
+import { DragDropContext, DropResult, Droppable, Draggable } from 'react-beautiful-dnd';
 import {
   fetchBoardById,
   addColumn,
   Board,
-  Column, // <-- Import Column
-  fetchCardsForBoard, // <-- Import card fetcher
-  createCard,         // <-- Import card creator
-  Card                // <-- Import Card type
+  Column,
+  fetchCardsForBoard,
+  createCard,
+  Card,
+  updateCardOrder
 } from '../api';
 
-// --- New "Add Card" Form Component ---
-// We're making this a separate component to keep the code clean
 interface AddCardFormProps {
   columnId: string;
   boardId: string;
-  onCardCreated: (newCard: Card) => void; // Callback to update state
+  onCardCreated: (newCard: Card) => void;
 }
 
 function AddCardForm({ columnId, boardId, onCardCreated }: AddCardFormProps) {
@@ -28,10 +27,9 @@ function AddCardForm({ columnId, boardId, onCardCreated }: AddCardFormProps) {
     if (!text.trim()) return;
 
     try {
-      // Call the API function we created
       const newCard = await createCard(boardId, columnId, text);
-      onCardCreated(newCard); // Pass the new card up to the parent
-      setText(""); // Clear input
+      onCardCreated(newCard);
+      setText("");
       setError(null);
     } catch (err) {
       setError("Failed to create card");
@@ -55,18 +53,16 @@ function AddCardForm({ columnId, boardId, onCardCreated }: AddCardFormProps) {
   );
 }
 
-// --- Main Board Page Component ---
 export function BoardPage() {
   const { id } = useParams<{ id: string }>();
   const [board, setBoard] = useState<Board | null>(null);
-  const [cards, setCards] = useState<Card[]>([]); // <-- New state for cards
+  const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newColumnTitle, setNewColumnTitle] = useState("");
 
   useEffect(() => {
     if (id) {
-      // Load both board details and cards at the same time
       Promise.all([
         fetchBoardById(id),
         fetchCardsForBoard(id)
@@ -84,7 +80,6 @@ export function BoardPage() {
     }
   }, [id]);
 
-  // --- Column Creation Handler ---
   const handleAddColumn = async (e: FormEvent) => {
     e.preventDefault();
     if (!id || !newColumnTitle.trim()) return;
@@ -99,13 +94,92 @@ export function BoardPage() {
     }
   };
 
-  // --- Card Creation Handler ---
-  // This is passed down to the AddCardForm
   const onCardCreated = (newCard: Card) => {
     setCards(prevCards => [...prevCards, newCard]);
   };
 
-  // --- Render Logic ---
+  const onDragEnd = (result: DropResult) => {
+    const { source, destination, draggableId } = result;
+
+    if (!destination) {
+      return;
+    }
+
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    // Find the card that was moved
+    const movedCard = cards.find(card => card._id === draggableId);
+    if (!movedCard) return;
+
+    // --- STATE UPDATE ---
+    let updatedCardsList = [...cards];
+
+    // Case 1: Moving within the same column
+    if (source.droppableId === destination.droppableId) {
+      const columnCards = updatedCardsList
+        .filter(card => card.columnId === source.droppableId)
+        .sort((a, b) => a.order - b.order);
+
+      columnCards.splice(source.index, 1);
+      columnCards.splice(destination.index, 0, movedCard);
+
+      const reorderedCards = columnCards.map((card, index) => ({ ...card, order: index }));
+      const otherCards = updatedCardsList.filter(card => card.columnId !== source.droppableId);
+      
+      setCards([...otherCards, ...reorderedCards]);
+      
+      // API call payload
+      const payload = reorderedCards.map(card => ({
+        _id: card._id,
+        order: card.order,
+        columnId: card.columnId,
+      }));
+      updateCardOrder(payload).catch(err => console.error("Failed to save reorder", err));
+
+    } else {
+      // Case 2: Moving to a different column
+      
+      // 1. Update the card's columnId
+      const cardWithNewColumn = { ...movedCard, columnId: destination.droppableId };
+
+      // 2. Remove card from old column's list
+      const sourceColumnCards = updatedCardsList
+        .filter(card => card.columnId === source.droppableId && card._id !== draggableId)
+        .sort((a, b) => a.order - b.order)
+        .map((card, index) => ({ ...card, order: index })); // Re-order old column
+
+      // 3. Add card to new column's list
+      const destColumnCards = updatedCardsList
+        .filter(card => card.columnId === destination.droppableId)
+        .sort((a, b) => a.order - b.order);
+
+      destColumnCards.splice(destination.index, 0, cardWithNewColumn);
+      const reorderedDestCards = destColumnCards.map((card, index) => ({ ...card, order: index })); // Re-order new column
+
+      // 4. Get all other cards that weren't touched
+      const otherCards = updatedCardsList.filter(
+        card => card.columnId !== source.droppableId && card.columnId !== destination.droppableId
+      );
+
+      // 5. Update state
+      setCards([...otherCards, ...sourceColumnCards, ...reorderedDestCards]);
+
+      // 6. API call payload
+      // We need to send the updated lists for *both* columns
+      const payload = [...sourceColumnCards, ...reorderedDestCards].map(card => ({
+        _id: card._id,
+        order: card.order,
+        columnId: card.columnId,
+      }));
+      updateCardOrder(payload).catch(err => console.error("Failed to save reorder", err));
+    }
+  };
+
   if (loading) return <div style={{ padding: '2rem' }}>Loading board...</div>;
   if (error) return <div style={{ padding: '2rem', color: 'red' }}>Error: {error}</div>;
   if (!board) return <div style={{ padding: '2rem' }}>Board not found.</div>;
@@ -117,54 +191,73 @@ export function BoardPage() {
       </Link>
       <h1 style={{ textAlign: 'center' }}>{board.title}</h1>
 
-      {/* Main container for columns */}
-      <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', alignItems: 'flex-start', overflowX: 'auto' }}>
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', alignItems: 'flex-start', overflowX: 'auto' }}>
 
-        {/* Loop over columns */}
-        {board.columns.map(column => {
-          // Filter cards that belong to *this* column
-          const columnCards = cards.filter(card => card.columnId === column._id);
+          {board.columns.map(column => {
+            const columnCards = cards
+              .filter(card => card.columnId === column._id)
+              .sort((a, b) => a.order - b.order);
 
-          return (
-            <div
-              key={column._id}
-              style={{ background: '#333', padding: '1rem', borderRadius: '4px', minWidth: '250px', flexShrink: 0 }}
-            >
-              <h3>{column.title}</h3>
-
-              {/* Card List */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {columnCards.map(card => (
-                  <div key={card._id} style={{ background: '#444', padding: '0.5rem', borderRadius: '3px' }}>
-                    {card.text}
-                  </div>
-                ))}
-                {columnCards.length === 0 && <p style={{fontSize: '0.8rem', color: '#888'}}>No cards yet</p>}
+            return (
+              <div
+                key={column._id}
+                style={{ background: '#333', padding: '1rem', borderRadius: '4px', minWidth: '250px', flexShrink: 0 }}
+              >
+                <h3>{column.title}</h3>
+                <Droppable droppableId={column._id}>
+                  {(provided) => (
+                    <div
+                      {...provided.droppableProps}
+                      ref={provided.innerRef}
+      style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minHeight: '50px' }}
+                    >
+                      {columnCards.map((card, index) => (
+                        <Draggable key={card._id} draggableId={card._id} index={index}>
+                          {(provided, snapshot) => (
+                            <div
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              ref={provided.innerRef}
+                              style={{
+                                background: snapshot.isDragging ? '#555' : '#444',
+                                padding: '0.5rem',
+                                borderRadius: '3px',
+                                ...provided.draggableProps.style,
+                              }}
+                            >
+                              {card.text}
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+                <AddCardForm
+                  columnId={column._id}
+                  boardId={board._id}
+                  onCardCreated={onCardCreated}
+                />
               </div>
+            );
+          })}
 
-              {/* Add Card Form */}
-              <AddCardForm
-                columnId={column._id}
-                boardId={board._id}
-                onCardCreated={onCardCreated}
-              />
-            </div>
-          );
-        })}
+          <form onSubmit={handleAddColumn} style={{ minWidth: '250px', flexShrink: 0 }}>
+            <input
+              value={newColumnTitle}
+              onChange={e => setNewColumnTitle(e.currentTarget.value)}
+              placeholder="New column title"
+              style={{ padding: '0.5rem', width: '100%' }}
+            />
+            <button type="submit" style={{ padding: '0.5rem 1rem', marginTop: '0.5rem' }}>
+              Add Column
+            </button>
+          </form>
 
-        {/* Add New Column Form */}
-        <form onSubmit={handleAddColumn} style={{ minWidth: '250px', flexShrink: 0 }}>
-          <input
-            value={newColumnTitle}
-            onChange={e => setNewColumnTitle(e.currentTarget.value)}
-            placeholder="New column title"
-            style={{ padding: '0.5rem', width: '100%' }}
-          />
-          <button type="submit" style={{ padding: '0.5rem 1rem', marginTop: '0.5rem' }}>
-            Add Column
-          </button>
-        </form>
-      </div>
+        </div>
+      </DragDropContext>
     </div>
   );
 }

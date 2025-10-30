@@ -41,4 +41,33 @@ router.post('/', async (req, res) => {
   }
 });
 
+// PATCH /cards/reorder - Bulk update card order and column
+router.patch('/reorder', async (req, res) => {
+  try {
+    // Expect an array of cards: [{ _id: 'cardId', order: 0, columnId: 'colId' }, ...]
+    const { cards } = req.body; 
+
+    if (!cards || !Array.isArray(cards)) {
+      return res.status(400).json({ error: 'Expected a "cards" array.' });
+    }
+
+    // Create an array of update operations
+    const operations = cards.map(card => ({
+      updateOne: {
+        filter: { _id: card._id },
+        update: { $set: { order: card.order, columnId: card.columnId } }
+      }
+    }));
+
+    // Execute all updates in a single database command
+    await CardModel.bulkWrite(operations);
+
+    return res.status(200).json({ message: 'Cards reordered successfully' });
+
+  } catch (err) {
+    console.error('Error reordering cards:', err);
+    return res.status(500).json({ error: 'Failed to reorder cards' });
+  }
+});
+
 export default router;
