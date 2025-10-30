@@ -91,3 +91,14 @@ export async function updateCardOrder(cards: CardReorderPayload[]) {
   if (!res.ok) throw new Error('Failed to update card order');
   return res.json();
 }
+
+// Function to update the order of columns
+export async function updateColumnOrder(boardId: string, columns: Column[]): Promise<Column[]> {
+  const res = await fetch(`${API_BASE}/boards/${boardId}/reorder-columns`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ columns }),
+  });
+  if (!res.ok) throw new Error('Failed to update column order');
+  return res.json();
+}

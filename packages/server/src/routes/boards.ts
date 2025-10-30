@@ -115,4 +115,37 @@ router.get('/:id/cards', async (req, res) => {
   }
 });
 
+// PATCH /boards/:id/reorder-columns - Update the order of columns on a board
+router.patch('/:id/reorder-columns', async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Expect an array of the full column objects in the new order
+    const { columns } = req.body;
+
+    if (!Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid board ID' });
+    }
+    if (!columns || !Array.isArray(columns)) {
+      return res.status(400).json({ error: 'Missing columns array' });
+    }
+
+    // Find the board and update its 'columns' array directly
+    const updatedBoard = await BoardModel.findByIdAndUpdate(
+      id,
+      { $set: { columns: columns } },
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedBoard) {
+      return res.status(404).json({ error: 'Board not found' });
+    }
+
+    return res.status(200).json(updatedBoard.columns);
+
+  } catch (err) {
+    console.error('Error reordering columns:', err);
+    return res.status(500).json({ error: 'Failed to reorder columns' });
+  }
+});
+
 export default router;
