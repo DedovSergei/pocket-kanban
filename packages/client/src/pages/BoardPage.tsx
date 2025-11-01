@@ -11,8 +11,14 @@ import {
   createCard,
   Card,
   updateCardOrder,
-  updateColumnOrder
+  updateColumnOrder,
+  deleteCard,
+  updateBoardTitle,
+  updateColumnTitle,
+  updateCardText,
+  deleteColumn
 } from '../api';
+import { InlineEdit } from '../components/InlineEdit';
 
 interface AddCardFormProps {
   columnId: string;
@@ -26,7 +32,6 @@ function AddCardForm({ columnId, boardId }: AddCardFormProps) {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
-
     try {
       await createCard(boardId, columnId, text);
       setText("");
@@ -101,14 +106,37 @@ export function BoardPage() {
       );
     };
 
+    const cardDeleteEvent = `card:delete:${id}`;
+    const cardDeleteHandler = (data: { cardId: string }) => {
+      setCards(prevCards => prevCards.filter(card => card._id !== data.cardId));
+    };
+
+    const boardUpdateEvent = `board:update:${id}`;
+    const boardUpdateHandler = (updatedBoard: Board) => {
+      setBoard(updatedBoard);
+    };
+
+    const cardUpdateEvent = `card:update:${id}`;
+    const cardUpdateHandler = (updatedCard: Card) => {
+      setCards(prevCards => 
+        prevCards.map(card => card._id === updatedCard._id ? updatedCard : card)
+      );
+    };
+
     socket.on(cardCreateEvent, cardCreateHandler);
     socket.on(cardReorderEvent, cardReorderHandler);
     socket.on(columnReorderEvent, columnReorderHandler);
+    socket.on(cardDeleteEvent, cardDeleteHandler);
+    socket.on(boardUpdateEvent, boardUpdateHandler);
+    socket.on(cardUpdateEvent, cardUpdateHandler);
 
     return () => {
       socket.off(cardCreateEvent, cardCreateHandler);
       socket.off(cardReorderEvent, cardReorderHandler);
       socket.off(columnReorderEvent, columnReorderHandler);
+      socket.off(cardDeleteEvent, cardDeleteHandler);
+      socket.off(boardUpdateEvent, boardUpdateHandler);
+      socket.off(cardUpdateEvent, cardUpdateHandler);
       socket.disconnect();
     };
   }, [id]);
@@ -117,11 +145,9 @@ export function BoardPage() {
     e.preventDefault();
     if (!id || !newColumnTitle.trim()) return;
     try {
-      const newColumn = await addColumn(id, newColumnTitle);
+      // We don't need to update state, the 'board:update' socket will
+      await addColumn(id, newColumnTitle);
       setNewColumnTitle("");
-      setBoard(prevBoard =>
-        prevBoard ? { ...prevBoard, columns: [...prevBoard.columns, newColumn] } : null
-      );
     } catch (err) {
       setError('Failed to add column');
     }
@@ -136,22 +162,19 @@ export function BoardPage() {
     ) {
       return;
     }
-    if (!board) return; // Make sure board is loaded
+    if (!board) return;
 
     if (type === 'COLUMN') {
       const newColumns = Array.from(board.columns);
       const [movedColumn] = newColumns.splice(source.index, 1);
       newColumns.splice(destination.index, 0, movedColumn);
-
       const reorderedColumns = newColumns.map((col, index) => ({
         ...col,
         order: index
       }));
-
       setBoard(prevBoard => 
         prevBoard ? { ...prevBoard, columns: reorderedColumns } : null
       );
-      
       updateColumnOrder(board._id, reorderedColumns).catch(err => {
         console.error("Failed to save column reorder", err);
       });
@@ -167,53 +190,74 @@ export function BoardPage() {
       const columnCards = updatedCardsList
         .filter(card => card.columnId === source.droppableId)
         .sort((a, b) => a.order - b.order);
-
       columnCards.splice(source.index, 1);
       columnCards.splice(destination.index, 0, movedCard);
-
       const reorderedCards = columnCards.map((card, index) => ({ ...card, order: index }));
       const otherCards = updatedCardsList.filter(card => card.columnId !== source.droppableId);
-      
       setCards([...otherCards, ...reorderedCards]);
       
-      // --- THIS IS THE FIX ---
       const payload = reorderedCards.map(card => ({
         _id: card._id,
         order: card.order,
         columnId: card.columnId,
-        boardId: board._id // <-- This was added
+        boardId: board._id
       }));
       updateCardOrder(payload).catch(err => console.error("Failed to save reorder", err));
 
     } else {
       const cardWithNewColumn = { ...movedCard, columnId: destination.droppableId };
-
       const sourceColumnCards = updatedCardsList
         .filter(card => card.columnId === source.droppableId && card._id !== draggableId)
         .sort((a, b) => a.order - b.order)
         .map((card, index) => ({ ...card, order: index }));
-
       const destColumnCards = updatedCardsList
         .filter(card => card.columnId === destination.droppableId)
         .sort((a, b) => a.order - b.order);
-
       destColumnCards.splice(destination.index, 0, cardWithNewColumn);
       const reorderedDestCards = destColumnCards.map((card, index) => ({ ...card, order: index }));
-
       const otherCards = updatedCardsList.filter(
         card => card.columnId !== source.droppableId && card.columnId !== destination.droppableId
       );
-
       setCards([...otherCards, ...sourceColumnCards, ...reorderedDestCards]);
 
-      // --- THIS IS THE FIX ---
       const payload = [...sourceColumnCards, ...reorderedDestCards].map(card => ({
         _id: card._id,
         order: card.order,
         columnId: card.columnId,
-        boardId: board._id // <-- This was added
+        boardId: board._id
       }));
       updateCardOrder(payload).catch(err => console.error("Failed to save reorder", err));
+    }
+  };
+
+  const handleDeleteCard = async (cardId: string) => {
+    try {
+      await deleteCard(cardId);
+    } catch (err) {
+      console.error("Failed to delete card", err);
+    }
+  };
+
+  const handleRenameBoard = async (newTitle: string) => {
+    if (!board) return;
+    await updateBoardTitle(board._id, newTitle);
+  };
+
+  const handleRenameColumn = async (columnId: string, newTitle: string) => {
+    if (!board) return;
+    await updateColumnTitle(board._id, columnId, newTitle);
+  };
+
+  const handleRenameCard = async (cardId: string, newText: string) => {
+    await updateCardText(cardId, newText);
+  };
+  
+  const handleDeleteColumn = async (columnId: string) => {
+    if (!board) return;
+    try {
+      await deleteColumn(board._id, columnId);
+    } catch (err) {
+      console.error('Failed to delete column', err);
     }
   };
 
@@ -226,7 +270,13 @@ export function BoardPage() {
       <Link to="/" style={{ color: '#ccc', textDecoration: 'none' }}>
         ← Back to Boards
       </Link>
-      <h1 style={{ textAlign: 'center' }}>{board.title}</h1>
+      <div style={{ textAlign: 'center' }}>
+        <InlineEdit
+          initialText={board.title}
+          onSave={handleRenameBoard}
+          className="board-title"
+        />
+      </div>
 
       <DragDropContext onDragEnd={onDragEnd}>
         <Droppable droppableId="all-columns" direction="horizontal" type="COLUMN">
@@ -251,8 +301,26 @@ export function BoardPage() {
                         ...provided.draggableProps.style 
                       }}
                     >
-                      <div {...provided.dragHandleProps} style={{ paddingBottom: '0.5rem', cursor: 'grab' }}>
-                        <h3>{column.title}</h3>
+                      <div {...provided.dragHandleProps} style={{ paddingBottom: '0.5rem', cursor: 'grab', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <InlineEdit
+                          initialText={column.title}
+                          onSave={(newTitle) => handleRenameColumn(column._id, newTitle)}
+                          className="column-title"
+                        />
+                        <button 
+                          onClick={() => handleDeleteColumn(column._id)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#aaa',
+                            cursor: 'pointer',
+                            fontSize: '1.2rem',
+                            lineHeight: '1',
+                            padding: '0 4px'
+                          }}
+                        >
+                          &times;
+                        </button>
                       </div>
                       
                       <Droppable droppableId={column._id} type="CARD">
@@ -270,16 +338,39 @@ export function BoardPage() {
                                   {(provided, snapshot) => (
                                     <div
                                       {...provided.draggableProps}
-                                      {...provided.dragHandleProps}
                                       ref={provided.innerRef}
                                       style={{
                                         background: snapshot.isDragging ? '#555' : '#444',
-                                        padding: '0.5rem',
                                         borderRadius: '3px',
+                                        position: 'relative',
                                         ...provided.draggableProps.style,
                                       }}
                                     >
-                                      {card.text}
+                                      <div {...provided.dragHandleProps} style={{ paddingRight: '20px' }}>
+                                        <InlineEdit
+                                          initialText={card.text}
+                                          onSave={(newText) => handleRenameCard(card._id, newText)}
+                                          textArea={true}
+                                          className="card-text"
+                                        />
+                                      </div>
+                                      <button 
+                                        onClick={() => handleDeleteCard(card._id)}
+                                        style={{
+                                          position: 'absolute',
+                                          top: '2px',
+                                          right: '2px',
+                                          background: 'none',
+                                          border: 'none',
+                                          color: '#aaa',
+                                          cursor: 'pointer',
+                                          fontSize: '1rem',
+                                          lineHeight: '1',
+                                          padding: '2px 4px'
+                                        }}
+                                      >
+                                        &times; 
+                                      </button>
                                     </div>
                                   )}
                                 </Draggable>

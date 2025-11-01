@@ -1,5 +1,5 @@
-import { Card, Column, Board } from './types'; // We'll move types to their own file
-export * from './types'; // And re-export them
+import { Card, Column, Board } from './types';
+export * from './types';
 
 const API_BASE = 'http://localhost:3001';
 
@@ -51,12 +51,11 @@ export async function createCard(boardId: string, columnId: string, text: string
   return res.json();
 }
 
-// --- THIS TYPE IS UPDATED ---
 type CardReorderPayload = {
   _id: string;
   order: number;
   columnId: string;
-  boardId: string; // <-- This was added
+  boardId: string;
 }
 
 export async function updateCardOrder(cards: CardReorderPayload[]) {
@@ -76,5 +75,59 @@ export async function updateColumnOrder(boardId: string, columns: Column[]): Pro
     body: JSON.stringify({ columns }),
   });
   if (!res.ok) throw new Error('Failed to update column order');
+  return res.json();
+}
+
+export async function deleteCard(cardId: string) {
+  const res = await fetch(`${API_BASE}/cards/${cardId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete card');
+  return res.json();
+}
+
+export async function updateBoardTitle(boardId: string, title: string): Promise<Board> {
+  const res = await fetch(`${API_BASE}/boards/${boardId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) throw new Error('Failed to update board title');
+  return res.json();
+}
+
+export async function updateColumnTitle(boardId: string, columnId: string, title: string): Promise<Board> {
+  const res = await fetch(`${API_BASE}/boards/${boardId}/columns/${columnId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) throw new Error('Failed to update column title');
+  return res.json();
+}
+
+export async function updateCardText(cardId: string, text: string): Promise<Card> {
+  const res = await fetch(`${API_BASE}/cards/${cardId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error('Failed to update card text');
+  return res.json();
+}
+
+export async function deleteColumn(boardId: string, columnId: string): Promise<Board> {
+  const res = await fetch(`${API_BASE}/boards/${boardId}/columns/${columnId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete column');
+  return res.json();
+}
+
+export async function deleteBoard(boardId: string) {
+  const res = await fetch(`${API_BASE}/boards/${boardId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete board');
   return res.json();
 }
