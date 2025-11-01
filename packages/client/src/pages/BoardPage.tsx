@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { useEffect, useState, FormEvent } from 'react';
 import { DragDropContext, DropResult, Droppable, Draggable } from 'react-beautiful-dnd';
-import { io, Socket } from 'socket.io-client';
+import { io } from 'socket.io-client';
 import {
   fetchBoardById,
   addColumn,
@@ -17,10 +17,9 @@ import {
 interface AddCardFormProps {
   columnId: string;
   boardId: string;
-  onCardCreated: (newCard: Card) => void;
 }
 
-function AddCardForm({ columnId, boardId, onCardCreated }: AddCardFormProps) {
+function AddCardForm({ columnId, boardId }: AddCardFormProps) {
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -29,8 +28,7 @@ function AddCardForm({ columnId, boardId, onCardCreated }: AddCardFormProps) {
     if (!text.trim()) return;
 
     try {
-      const newCard = await createCard(boardId, columnId, text);
-      onCardCreated(newCard);
+      await createCard(boardId, columnId, text);
       setText("");
       setError(null);
     } catch (err) {
@@ -80,7 +78,6 @@ export function BoardPage() {
 
   useEffect(() => {
     if (!id) return;
-
     const socket = io('http://localhost:3001');
 
     const cardCreateEvent = `card:create:${id}`;
@@ -88,10 +85,30 @@ export function BoardPage() {
       setCards(prevCards => [...prevCards, newCard]);
     };
     
+    const cardReorderEvent = `card:reorder:${id}`;
+    const cardReorderHandler = (updatedCards: Card[]) => {
+      setCards(prevCards => {
+        const newCardsMap = new Map(updatedCards.map(c => [c._id, c]));
+        const otherCards = prevCards.filter(c => !newCardsMap.has(c._id));
+        return [...otherCards, ...updatedCards];
+      });
+    };
+
+    const columnReorderEvent = `column:reorder:${id}`;
+    const columnReorderHandler = (updatedColumns: Column[]) => {
+      setBoard(prevBoard => 
+        prevBoard ? { ...prevBoard, columns: updatedColumns } : null
+      );
+    };
+
     socket.on(cardCreateEvent, cardCreateHandler);
+    socket.on(cardReorderEvent, cardReorderHandler);
+    socket.on(columnReorderEvent, columnReorderHandler);
 
     return () => {
       socket.off(cardCreateEvent, cardCreateHandler);
+      socket.off(cardReorderEvent, cardReorderHandler);
+      socket.off(columnReorderEvent, columnReorderHandler);
       socket.disconnect();
     };
   }, [id]);
@@ -110,26 +127,18 @@ export function BoardPage() {
     }
   };
 
-  const onCardCreated = (newCard: Card) => {
-    // This function is now only called by the form, not by the socket
-    // We can leave it empty because the socket will handle the state update
-  };
-
   const onDragEnd = (result: DropResult) => {
     const { source, destination, draggableId, type } = result;
-
     if (!destination) return;
-
     if (
       destination.droppableId === source.droppableId &&
       destination.index === source.index
     ) {
       return;
     }
+    if (!board) return; // Make sure board is loaded
 
     if (type === 'COLUMN') {
-      if (!board) return;
-      
       const newColumns = Array.from(board.columns);
       const [movedColumn] = newColumns.splice(source.index, 1);
       newColumns.splice(destination.index, 0, movedColumn);
@@ -167,10 +176,12 @@ export function BoardPage() {
       
       setCards([...otherCards, ...reorderedCards]);
       
+      // --- THIS IS THE FIX ---
       const payload = reorderedCards.map(card => ({
         _id: card._id,
         order: card.order,
         columnId: card.columnId,
+        boardId: board._id // <-- This was added
       }));
       updateCardOrder(payload).catch(err => console.error("Failed to save reorder", err));
 
@@ -195,10 +206,12 @@ export function BoardPage() {
 
       setCards([...otherCards, ...sourceColumnCards, ...reorderedDestCards]);
 
+      // --- THIS IS THE FIX ---
       const payload = [...sourceColumnCards, ...reorderedDestCards].map(card => ({
         _id: card._id,
         order: card.order,
         columnId: card.columnId,
+        boardId: board._id // <-- This was added
       }));
       updateCardOrder(payload).catch(err => console.error("Failed to save reorder", err));
     }
@@ -278,7 +291,6 @@ export function BoardPage() {
                       <AddCardForm
                         columnId={column._id}
                         boardId={board._id}
-                        onCardCreated={onCardCreated}
                       />
                     </div>
                   )}

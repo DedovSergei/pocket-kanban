@@ -5,6 +5,7 @@ import { Types } from 'mongoose';
 
 const router = Router();
 
+// POST /cards - Create a new card
 router.post('/', async (req, res) => {
   try {
     const { text, columnId, boardId } = req.body;
@@ -42,6 +43,7 @@ router.post('/', async (req, res) => {
   }
 });
 
+// PATCH /cards/reorder - Update card order
 router.patch('/reorder', async (req, res) => {
   try {
     const { cards } = req.body;
@@ -62,7 +64,13 @@ router.patch('/reorder', async (req, res) => {
 
     if (cards.length > 0) {
       const boardId = cards[0].boardId;
-      io.emit(`card:reorder:${boardId}`, cards);
+      
+      // Re-fetch the full, updated card documents from the database
+      const updatedCardIds = cards.map(c => c._id);
+      const updatedFullCards = await CardModel.find({ _id: { $in: updatedCardIds } });
+
+      // Emit the complete card objects, not the partial ones
+      io.emit(`card:reorder:${boardId}`, updatedFullCards);
     }
 
     return res.status(200).json({ message: 'Cards reordered successfully' });
