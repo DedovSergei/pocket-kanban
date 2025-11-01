@@ -1,19 +1,19 @@
 import { Router } from 'express';
 import { CardModel } from '../models/Card';
 import { BoardModel } from '../models/Board';
+import { Types } from 'mongoose';
 
 const router = Router();
 
-// POST /cards - Create a new card
 router.post('/', async (req, res) => {
   try {
     const { text, columnId, boardId } = req.body;
+    const io = req.app.get('socketio');
 
     if (!text || !columnId || !boardId) {
       return res.status(400).json({ error: 'Missing text, columnId, or boardId' });
     }
 
-    // Find the board and column to make sure they exist
     const board = await BoardModel.findById(boardId);
     if (!board) {
       return res.status(404).json({ error: 'Board not found' });
@@ -23,15 +23,16 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ error: 'Column not found on this board' });
     }
 
-    // Get the current card count for this column to set the order
     const cardCount = await CardModel.countDocuments({ columnId, boardId });
 
     const newCard = await CardModel.create({
       text,
       boardId,
       columnId,
-      order: cardCount, 
+      order: cardCount,
     });
+
+    io.emit(`card:create:${boardId}`, newCard);
 
     return res.status(201).json(newCard);
 
@@ -41,17 +42,15 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PATCH /cards/reorder - Bulk update card order and column
 router.patch('/reorder', async (req, res) => {
   try {
-    // Expect an array of cards: [{ _id: 'cardId', order: 0, columnId: 'colId' }, ...]
-    const { cards } = req.body; 
+    const { cards } = req.body;
+    const io = req.app.get('socketio');
 
     if (!cards || !Array.isArray(cards)) {
       return res.status(400).json({ error: 'Expected a "cards" array.' });
     }
 
-    // Create an array of update operations
     const operations = cards.map(card => ({
       updateOne: {
         filter: { _id: card._id },
@@ -59,8 +58,12 @@ router.patch('/reorder', async (req, res) => {
       }
     }));
 
-    // Execute all updates in a single database command
     await CardModel.bulkWrite(operations);
+
+    if (cards.length > 0) {
+      const boardId = cards[0].boardId;
+      io.emit(`card:reorder:${boardId}`, cards);
+    }
 
     return res.status(200).json({ message: 'Cards reordered successfully' });
 

@@ -18,13 +18,20 @@ mongoose
     process.exit(1);
   });
 
-// SETUP APP
 const app = express();
 app.use(cors({ origin: 'http://localhost:5173' }));
+
 const server = http.createServer(app);
-const io = new IOServer(server, { cors: { origin: '*' } });
+const io = new IOServer(server, {
+  cors: { origin: 'http://localhost:5173' }
+});
 
 app.use(express.json());
+
+app.use((req, _res, next) => {
+  req.app.set('socketio', io);
+  next();
+});
 
 app.use('/boards', boardsRouter);
 app.use('/cards', cardsRouter);

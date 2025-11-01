@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { useEffect, useState, FormEvent } from 'react';
 import { DragDropContext, DropResult, Droppable, Draggable } from 'react-beautiful-dnd';
+import { io, Socket } from 'socket.io-client';
 import {
   fetchBoardById,
   addColumn,
@@ -61,7 +62,7 @@ export function BoardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newColumnTitle, setNewColumnTitle] = useState("");
-
+  
   useEffect(() => {
     if (id) {
       Promise.all([
@@ -75,6 +76,24 @@ export function BoardPage() {
       .catch(err => { setError(err.message); })
       .finally(() => { setLoading(false); });
     }
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const socket = io('http://localhost:3001');
+
+    const cardCreateEvent = `card:create:${id}`;
+    const cardCreateHandler = (newCard: Card) => {
+      setCards(prevCards => [...prevCards, newCard]);
+    };
+    
+    socket.on(cardCreateEvent, cardCreateHandler);
+
+    return () => {
+      socket.off(cardCreateEvent, cardCreateHandler);
+      socket.disconnect();
+    };
   }, [id]);
 
   const handleAddColumn = async (e: FormEvent) => {
@@ -92,7 +111,8 @@ export function BoardPage() {
   };
 
   const onCardCreated = (newCard: Card) => {
-    setCards(prevCards => [...prevCards, newCard]);
+    // This function is now only called by the form, not by the socket
+    // We can leave it empty because the socket will handle the state update
   };
 
   const onDragEnd = (result: DropResult) => {
