@@ -78,7 +78,6 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// --- ADD THIS MISSING ROUTE ---
 router.patch('/:id', async (req, res) => {
   try {
     const { id } = req.params;

@@ -11,8 +11,6 @@ export function InlineEdit({ initialText, onSave, className, textArea }: InlineE
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(initialText);
 
-  // This hook fixes the bug
-  // It syncs the internal state with the prop if the prop changes
   useEffect(() => {
     setText(initialText);
   }, [initialText]);

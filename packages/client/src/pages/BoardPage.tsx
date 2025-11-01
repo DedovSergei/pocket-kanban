@@ -145,7 +145,6 @@ export function BoardPage() {
     e.preventDefault();
     if (!id || !newColumnTitle.trim()) return;
     try {
-      // We don't need to update state, the 'board:update' socket will
       await addColumn(id, newColumnTitle);
       setNewColumnTitle("");
     } catch (err) {

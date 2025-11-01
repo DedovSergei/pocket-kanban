@@ -9,7 +9,6 @@ export function BoardListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Initial data fetch
   useEffect(() => {
     fetchBoards()
       .then(data => setBoards(data))
@@ -17,7 +16,6 @@ export function BoardListPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Socket listeners for real-time updates
   useEffect(() => {
     const socket = io('http://localhost:3001');
 
@@ -30,7 +28,7 @@ export function BoardListPage() {
     };
 
     socket.on('board:delete', deleteHandler);
-    socket.on('board:create', createHandler); // Listens for new boards
+    socket.on('board:create', createHandler);
 
     return () => {
       socket.off('board:delete', deleteHandler);
@@ -43,7 +41,6 @@ export function BoardListPage() {
     e.preventDefault();
     if (!newTitle.trim()) return;
     try {
-      // We don't need to update state, the socket will
       await createBoard(newTitle);
       setNewTitle('');
     } catch (err: any) {
@@ -52,7 +49,6 @@ export function BoardListPage() {
   };
 
   const handleDeleteBoard = async (boardId: string) => {
-    // We just call the API. The 'board:delete' socket will update state.
     try {
       await deleteBoard(boardId);
     } catch (err) {

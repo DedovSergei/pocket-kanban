@@ -46,12 +46,11 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// --- THIS ROUTE IS UPDATED ---
 router.post('/:id/columns', async (req, res) => {
   try {
     const { id } = req.params;
     const { title } = req.body;
-    const io = req.app.get('socketio'); // 1. Get io
+    const io = req.app.get('socketio');
 
     if (!title) {
       return res.status(400).json({ error: 'Column title is required' });
@@ -74,7 +73,6 @@ router.post('/:id/columns', async (req, res) => {
     board.columns.push(newColumn);
     await board.save();
 
-    // 2. Emit the full board update
     io.emit(`board:update:${id}`, board);
 
     return res.status(201).json(newColumn);
