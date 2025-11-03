@@ -42,7 +42,7 @@ export function InlineEdit({ initialText, onSave, className, textArea }: InlineE
       className: className,
       style: { 
         width: '100%', 
-        padding: '0.5rem', 
+        padding: '0.5rem',
         margin: 0, 
         boxSizing: 'border-box' 
       } as React.CSSProperties
@@ -59,7 +59,7 @@ export function InlineEdit({ initialText, onSave, className, textArea }: InlineE
     <div
       onClick={() => setIsEditing(true)}
       className={className}
-      style={{ cursor: 'pointer', padding: '0.5rem' }}
+      style={{ cursor: 'pointer' }}
     >
       {text}
     </div>

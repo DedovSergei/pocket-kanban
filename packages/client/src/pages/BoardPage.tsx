@@ -19,16 +19,15 @@ import {
   deleteColumn
 } from '../api';
 import { InlineEdit } from '../components/InlineEdit';
+import styles from './BoardPage.module.css';
 
 interface AddCardFormProps {
   columnId: string;
   boardId: string;
 }
-
 function AddCardForm({ columnId, boardId }: AddCardFormProps) {
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
@@ -40,7 +39,6 @@ function AddCardForm({ columnId, boardId }: AddCardFormProps) {
       setError("Failed to create card");
     }
   };
-
   return (
     <form onSubmit={handleSubmit} style={{ marginTop: '1rem' }}>
       <textarea
@@ -89,7 +87,6 @@ export function BoardPage() {
     const cardCreateHandler = (newCard: Card) => {
       setCards(prevCards => [...prevCards, newCard]);
     };
-    
     const cardReorderEvent = `card:reorder:${id}`;
     const cardReorderHandler = (updatedCards: Card[]) => {
       setCards(prevCards => {
@@ -98,24 +95,20 @@ export function BoardPage() {
         return [...otherCards, ...updatedCards];
       });
     };
-
     const columnReorderEvent = `column:reorder:${id}`;
     const columnReorderHandler = (updatedColumns: Column[]) => {
       setBoard(prevBoard => 
         prevBoard ? { ...prevBoard, columns: updatedColumns } : null
       );
     };
-
     const cardDeleteEvent = `card:delete:${id}`;
     const cardDeleteHandler = (data: { cardId: string }) => {
       setCards(prevCards => prevCards.filter(card => card._id !== data.cardId));
     };
-
     const boardUpdateEvent = `board:update:${id}`;
     const boardUpdateHandler = (updatedBoard: Board) => {
       setBoard(updatedBoard);
     };
-
     const cardUpdateEvent = `card:update:${id}`;
     const cardUpdateHandler = (updatedCard: Card) => {
       setCards(prevCards => 
@@ -151,7 +144,6 @@ export function BoardPage() {
       setError('Failed to add column');
     }
   };
-
   const onDragEnd = (result: DropResult) => {
     const { source, destination, draggableId, type } = result;
     if (!destination) return;
@@ -162,7 +154,6 @@ export function BoardPage() {
       return;
     }
     if (!board) return;
-
     if (type === 'COLUMN') {
       const newColumns = Array.from(board.columns);
       const [movedColumn] = newColumns.splice(source.index, 1);
@@ -179,12 +170,9 @@ export function BoardPage() {
       });
       return;
     }
-
     const movedCard = cards.find(card => card._id === draggableId);
     if (!movedCard) return;
-
     let updatedCardsList = [...cards];
-
     if (source.droppableId === destination.droppableId) {
       const columnCards = updatedCardsList
         .filter(card => card.columnId === source.droppableId)
@@ -194,7 +182,6 @@ export function BoardPage() {
       const reorderedCards = columnCards.map((card, index) => ({ ...card, order: index }));
       const otherCards = updatedCardsList.filter(card => card.columnId !== source.droppableId);
       setCards([...otherCards, ...reorderedCards]);
-      
       const payload = reorderedCards.map(card => ({
         _id: card._id,
         order: card.order,
@@ -202,7 +189,6 @@ export function BoardPage() {
         boardId: board._id
       }));
       updateCardOrder(payload).catch(err => console.error("Failed to save reorder", err));
-
     } else {
       const cardWithNewColumn = { ...movedCard, columnId: destination.droppableId };
       const sourceColumnCards = updatedCardsList
@@ -218,7 +204,6 @@ export function BoardPage() {
         card => card.columnId !== source.droppableId && card.columnId !== destination.droppableId
       );
       setCards([...otherCards, ...sourceColumnCards, ...reorderedDestCards]);
-
       const payload = [...sourceColumnCards, ...reorderedDestCards].map(card => ({
         _id: card._id,
         order: card.order,
@@ -228,7 +213,6 @@ export function BoardPage() {
       updateCardOrder(payload).catch(err => console.error("Failed to save reorder", err));
     }
   };
-
   const handleDeleteCard = async (cardId: string) => {
     try {
       await deleteCard(cardId);
@@ -236,21 +220,17 @@ export function BoardPage() {
       console.error("Failed to delete card", err);
     }
   };
-
   const handleRenameBoard = async (newTitle: string) => {
     if (!board) return;
     await updateBoardTitle(board._id, newTitle);
   };
-
   const handleRenameColumn = async (columnId: string, newTitle: string) => {
     if (!board) return;
     await updateColumnTitle(board._id, columnId, newTitle);
   };
-
   const handleRenameCard = async (cardId: string, newText: string) => {
     await updateCardText(cardId, newText);
   };
-  
   const handleDeleteColumn = async (columnId: string) => {
     if (!board) return;
     try {
@@ -260,20 +240,21 @@ export function BoardPage() {
     }
   };
 
-  if (loading) return <div style={{ padding: '2rem' }}>Loading board...</div>;
-  if (error) return <div style={{ padding: '2rem', color: 'red' }}>Error: {error}</div>;
-  if (!board) return <div style={{ padding: '2rem' }}>Board not found.</div>;
+  if (loading) return <div className={styles.page}>Loading board...</div>;
+  if (error) return <div className={`${styles.page} ${styles.error}`}>Error: {error}</div>;
+  if (!board) return <div className={styles.page}>Board not found.</div>;
 
   return (
-    <div style={{ padding: '2rem' }}>
-      <Link to="/" style={{ color: '#ccc', textDecoration: 'none' }}>
+    <div className={styles.page}>
+      <Link to="/" className={styles.backLink}>
         ← Back to Boards
       </Link>
-      <div style={{ textAlign: 'center' }}>
+      
+      <div> 
         <InlineEdit
           initialText={board.title}
           onSave={handleRenameBoard}
-          className="board-title"
+          className={styles.boardTitle}
         />
       </div>
 
@@ -283,7 +264,7 @@ export function BoardPage() {
             <div 
               {...provided.droppableProps}
               ref={provided.innerRef}
-              style={{ display: 'flex', gap: '1rem', marginTop: '2rem', alignItems: 'flex-start', overflowX: 'auto' }}
+              className={styles.columnContainer}
             >
               {board.columns.map((column, index) => (
                 <Draggable key={column._id} draggableId={column._id} index={index}>
@@ -291,32 +272,18 @@ export function BoardPage() {
                     <div
                       {...provided.draggableProps}
                       ref={provided.innerRef}
-                      style={{ 
-                        background: '#333', 
-                        padding: '1rem', 
-                        borderRadius: '4px', 
-                        minWidth: '250px', 
-                        flexShrink: 0,
-                        ...provided.draggableProps.style 
-                      }}
+                      className={styles.column}
+                      style={{ ...provided.draggableProps.style }}
                     >
-                      <div {...provided.dragHandleProps} style={{ paddingBottom: '0.5rem', cursor: 'grab', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div {...provided.dragHandleProps} className={styles.columnHeader}>
                         <InlineEdit
                           initialText={column.title}
                           onSave={(newTitle) => handleRenameColumn(column._id, newTitle)}
-                          className="column-title"
+                          className={styles.columnTitle}
                         />
                         <button 
                           onClick={() => handleDeleteColumn(column._id)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#aaa',
-                            cursor: 'pointer',
-                            fontSize: '1.2rem',
-                            lineHeight: '1',
-                            padding: '0 4px'
-                          }}
+                          className={styles.deleteButton}
                         >
                           &times;
                         </button>
@@ -327,7 +294,7 @@ export function BoardPage() {
                           <div
                             {...provided.droppableProps}
                             ref={provided.innerRef}
-                            style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minHeight: '50px' }}
+                            className={styles.cardList}
                           >
                             {cards
                               .filter(card => card.columnId === column._id)
@@ -338,35 +305,20 @@ export function BoardPage() {
                                     <div
                                       {...provided.draggableProps}
                                       ref={provided.innerRef}
-                                      style={{
-                                        background: snapshot.isDragging ? '#555' : '#444',
-                                        borderRadius: '3px',
-                                        position: 'relative',
-                                        ...provided.draggableProps.style,
-                                      }}
+                                      className={`${styles.card} ${snapshot.isDragging ? styles.cardDragging : ''}`}
+                                      style={{ ...provided.draggableProps.style }}
                                     >
-                                      <div {...provided.dragHandleProps} style={{ paddingRight: '20px' }}>
+                                      <div {...provided.dragHandleProps} className={styles.cardHandle}>
                                         <InlineEdit
                                           initialText={card.text}
                                           onSave={(newText) => handleRenameCard(card._id, newText)}
                                           textArea={true}
-                                          className="card-text"
+                                          className={styles.cardText}
                                         />
                                       </div>
                                       <button 
                                         onClick={() => handleDeleteCard(card._id)}
-                                        style={{
-                                          position: 'absolute',
-                                          top: '2px',
-                                          right: '2px',
-                                          background: 'none',
-                                          border: 'none',
-                                          color: '#aaa',
-                                          cursor: 'pointer',
-                                          fontSize: '1rem',
-                                          lineHeight: '1',
-                                          padding: '2px 4px'
-                                        }}
+                                        className={styles.cardDeleteButton}
                                       >
                                         &times; 
                                       </button>
@@ -388,14 +340,13 @@ export function BoardPage() {
               ))}
               {provided.placeholder}
               
-              <form onSubmit={handleAddColumn} style={{ minWidth: '250px', flexShrink: 0 }}>
+              <form onSubmit={handleAddColumn} className={styles.addColumnForm}>
                 <input
                   value={newColumnTitle}
                   onChange={e => setNewColumnTitle(e.currentTarget.value)}
                   placeholder="New column title"
-                  style={{ padding: '0.5rem', width: '100%' }}
                 />
-                <button type="submit" style={{ padding: '0.5rem 1rem', marginTop: '0.5rem' }}>
+                <button type="submit">
                   Add Column
                 </button>
               </form>

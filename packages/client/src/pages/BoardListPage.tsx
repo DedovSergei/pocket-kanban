@@ -2,6 +2,7 @@ import { useEffect, useState, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { fetchBoards, createBoard, Board, deleteBoard } from '../api';
+import styles from './BoardListPage.module.css';
 
 export function BoardListPage() {
   const [boards, setBoards] = useState<Board[]>([]);
@@ -57,56 +58,39 @@ export function BoardListPage() {
   };
 
   return (
-    <div style={{ fontFamily: 'sans-serif', padding: '2rem', maxWidth: 600, margin: '0 auto' }}>
-      <h1 style={{ textAlign: 'center' }}>Pocket Kanban</h1>
+    <div className={styles.page}>
+      <h1 className={styles.title}>Pocket Kanban</h1>
 
-      <form onSubmit={handleSubmit} style={{ marginBottom: '1rem', display: 'flex' }}>
+      <form onSubmit={handleSubmit} className={styles.form}>
         <input
           value={newTitle}
           onChange={e => setNewTitle(e.currentTarget.value)}
           placeholder="New board title"
-          style={{ padding: '0.5rem', flexGrow: 1, marginRight: '0.5rem' }}
         />
-        <button type="submit" style={{ padding: '0.5rem 1rem' }}>
+        <button type="submit">
           Create
         </button>
       </form>
 
-      {loading && <p>Loading boards...</p>}
-      {error && <p style={{ color: 'red' }}>Error: {error}</p>}
-      {!loading && boards.length === 0 && <p>No boards yet. Create one!</p>}
+      {loading && <p className={styles.loading}>Loading boards...</p>}
+      {error && <p className={styles.error}>Error: {error}</p>}
+      {!loading && boards.length === 0 && <p className={styles.noBoards}>No boards yet. Create one!</p>}
 
-      <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
+      <ul className={styles.boardList}>
         {boards.map(b => (
           <li 
             key={b._id} 
-            style={{ 
-              marginBottom: '0.5rem', 
-              background: '#333', 
-              padding: '1rem', 
-              borderRadius: '4px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}
+            className={styles.boardItem}
           >
             <Link 
               to={`/board/${b._id}`}
-              style={{ textDecoration: 'none', color: 'inherit', flexGrow: 1 }}
+              className={styles.boardLink}
             >
               {b.title}
             </Link>
             <button 
               onClick={() => handleDeleteBoard(b._id)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#aaa',
-                cursor: 'pointer',
-                fontSize: '1.2rem',
-                lineHeight: '1',
-                padding: '0 4px'
-              }}
+              className={styles.deleteButton}
             >
               &times;
             </button>

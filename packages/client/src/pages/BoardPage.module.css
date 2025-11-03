@@ -1,0 +1,144 @@
+.page {
+  padding: 2rem;
+}
+
+.backLink {
+  color: #555;
+  text-decoration: none;
+}
+
+.boardTitle {
+  text-align: center;
+  font-size: 2.5rem;
+  font-weight: bold;
+  padding: 0.5rem;
+  min-height: 2.5rem;
+  cursor: pointer;
+}
+
+input.boardTitle,
+textarea.boardTitle {
+  font-size: 2.5rem;
+  font-weight: bold;
+  text-align: center;
+  background: #f0f0f0;
+  color: #111;
+  border: 1px solid #999;
+  border-radius: 4px;
+}
+
+.columnContainer {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  align-items: flex-start;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+}
+
+.column {
+  background: #242424;
+  color: #fff;
+  padding: 1rem;
+  border-radius: 4px;
+  min-width: 250px;
+  flex-shrink: 0;
+}
+
+.columnHeader {
+  padding-bottom: 0.5rem;
+  cursor: grab;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.columnHeader h3 {
+  margin: 0;
+  padding: 0.5rem;
+}
+
+.columnTitle {
+  padding: 0.5rem;
+  cursor: pointer;
+}
+
+input.columnTitle,
+textarea.columnTitle {
+  background: #555;
+  color: #fff;
+  border: 1px solid #777;
+  font-weight: bold;
+}
+
+.deleteButton {
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 0 4px;
+}
+.deleteButton:hover {
+  color: #fff;
+}
+
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 50px;
+}
+
+.card {
+  background: #444;
+  border-radius: 3px;
+  position: relative;
+}
+.cardDragging {
+  background: #555;
+}
+
+.cardHandle {
+  padding-right: 20px;
+}
+
+.cardText {
+  padding: 0.5rem;
+  cursor: pointer;
+}
+.cardText textarea {
+  background: #555;
+  color: #fff;
+  border: 1px solid #777;
+}
+
+.cardDeleteButton {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 2px 4px;
+}
+.cardDeleteButton:hover {
+  color: #fff;
+}
+
+.addColumnForm {
+  min-width: 250px;
+  flex-shrink: 0;
+}
+.addColumnForm input {
+  padding: 0.5rem;
+  width: 100%;
+}
+.addColumnForm button {
+  padding: 0.5rem 1rem;
+  margin-top: 0.5rem;
+}
